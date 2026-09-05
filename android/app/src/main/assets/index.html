@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Геокалькулятор</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --border: #e5e5e5;
+      --text: #111111;
+      --muted: #737373;
+      --accent: #2563eb;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      gap: 10px;
+      overflow: hidden;
+    }
+    .accordion {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      min-height: 0;
+    }
+    .acc-item {
+      display: flex;
+      flex-direction: column;
+      border-radius: 12px;
+      transition: flex 0.35s ease;
+      min-height: 0;
+    }
+    .accordion:not(.has-expanded) .acc-item.collapsed {
+      flex: 1 1 0;
+      min-height: 0;
+    }
+    .accordion.has-expanded .acc-item.collapsed {
+      flex: 0 0 auto;
+    }
+    .acc-item.expanded { flex: 1 1 auto; min-height: 0; }
+    .acc-header {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      padding: 14px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+      text-align: center;
+    }
+    .accordion:not(.has-expanded) .acc-item.collapsed .acc-header {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    .acc-item.expanded .acc-header {
+      flex: 0 0 auto;
+      border-radius: var(--radius) var(--radius) 0 0;
+      border-bottom: 2px solid var(--accent);
+    }
+    .acc-body {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease;
+      padding: 0 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .acc-item.expanded .acc-body {
+      max-height: 2000px;
+      opacity: 1;
+      padding: 14px 14px 16px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+    }
+    .point-block {
+      margin-bottom: 12px;
+    }
+    .point-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .dms-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .coord-col {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .coord-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: center;
+    }
+    .dms-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .field span {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .field input, .plain-input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      padding: 10px 8px;
+      font-size: 14px;
+      text-align: center;
+      color: var(--text);
+    }
+    .field input:focus, .plain-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .ellipsoid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin: 8px 0 12px;
+    }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      padding: 11px 12px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+      font-weight: 600;
+    }
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .pgz-hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .pgz-row {
+      display: grid;
+      grid-template-columns: 1fr minmax(56px, 1fr) 40px;
+      gap: 6px;
+      align-items: end;
+      margin-bottom: 8px;
+    }
+    .pgz-row .dms-group { min-width: 0; }
+    .pgz-row .dist-wrap { min-width: 56px; width: 100%; }
+    .pgz-row .btn-icon {
+      width: 40px;
+      height: 44px;
+      padding: 0;
+      font-size: 18px;
+    }
+    .dist-wrap { position: relative; }
+    .dist-wrap input {
+      padding: 10px 22px 10px 6px;
+      font-size: 13px;
+      text-align: left;
+    }
+    .dist-wrap::after {
+      content: "м";
+      position: absolute;
+      right: 10px;
+      bottom: 11px;
+      font-size: 12px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .result {
+      margin-top: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      color: var(--muted);
+    }
+    .export-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 100;
+    }
+    .modal.hidden { display: none; }
+    .modal-box {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      padding: 24px 20px 18px;
+      max-width: 320px;
+      width: 100%;
+      text-align: center;
+    }
+    .modal-text {
+      font-size: 15px;
+      margin-bottom: 18px;
+      line-height: 1.4;
+      color: var(--text);
+    }
+    .modal-box .btn { width: auto; min-width: 100px; margin: 0 auto; }
+  </style>
+</head>
+<body>
+  <div class="accordion" id="accordion">
+    <section class="acc-item collapsed" data-id="ogz">
+      <button type="button" class="acc-header" onclick="toggleSection('ogz')">ОГЗ</button>
+      <div class="acc-body">
+        <div class="point-block">
+          <div class="point-title">Точка стояния</div>
+          <div class="dms-row">
+            <div class="coord-col">
+              <div class="coord-label">B1</div>
+              <div class="dms-group" id="B1"></div>
+            </div>
+            <div class="coord-col">
+              <div class="coord-label">L1</div>
+              <div class="dms-group" id="L1"></div>
+            </div>
+          </div>
+        </div>
+        <div class="point-block">
+          <div class="point-title">Точка ориентирования</div>
+          <div class="dms-row">
+            <div class="coord-col">
+              <div class="coord-label">B2</div>
+              <div class="dms-group" id="B2"></div>
+            </div>
+            <div class="coord-col">
+              <div class="coord-label">L2</div>
+              <div class="dms-group" id="L2"></div>
+            </div>
+          </div>
+        </div>
+        <div class="ellipsoid">
+          <div class="field"><span>a</span><input class="plain-input" id="a" value="6378137"/></div>
+          <div class="field"><span>e²</span><input class="plain-input" id="e2" value="0.00669437999014"/></div>
+          <div class="field"><span>Итерации</span><input class="plain-input" id="iter" value="4"/></div>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="calcOgz()">Вычислить</button>
+        <div id="ogzResult" class="result"></div>
+      </div>
+    </section>
+
+    <section class="acc-item collapsed" data-id="pgz">
+      <button type="button" class="acc-header" onclick="toggleSection('pgz')">ПГЗ</button>
+      <div class="acc-body">
+        <div class="pgz-hint">Горизонтальный угол (° ′ ″) и расстояние s</div>
+        <div id="rows"></div>
+        <div class="btn-row">
+          <button type="button" class="btn" onclick="addRow()">+</button>
+          <button type="button" class="btn btn-primary" onclick="calcPolar()">Вычислить</button>
+        </div>
+        <div id="polarResult" class="result"></div>
+      </div>
+    </section>
+
+    <section class="acc-item collapsed" data-id="export">
+      <button type="button" class="acc-header" onclick="toggleSection('export')">Экспорт</button>
+      <div class="acc-body">
+        <div class="export-grid">
+          <button type="button" class="btn" onclick="exportKind('pdf')">PDF</button>
+          <button type="button" class="btn" onclick="exportKind('kml')">KML</button>
+          <button type="button" class="btn" onclick="exportKind('map')">Карта</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <div id="modalText" class="modal-text"></div>
+      <button type="button" class="btn btn-primary" onclick="hideModal()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    const native = window.Geocalc;
+    let ogz = null;
+    let polarPoints = [];
+    let expandedId = null;
+
+    function showModal(text) {
+      document.getElementById('modalText').textContent = text;
+      document.getElementById('modal').classList.remove('hidden');
+    }
+    function hideModal() {
+      document.getElementById('modal').classList.add('hidden');
+    }
+
+    function toggleSection(id) {
+      const accordion = document.getElementById('accordion');
+      if (expandedId === id) {
+        document.querySelector(`[data-id="${id}"]`).classList.replace('expanded', 'collapsed');
+        expandedId = null;
+        accordion.classList.remove('has-expanded');
+        return;
+      }
+      document.querySelectorAll('.acc-item').forEach(el => {
+        el.classList.remove('expanded');
+        el.classList.add('collapsed');
+      });
+      const item = document.querySelector(`[data-id="${id}"]`);
+      item.classList.remove('collapsed');
+      item.classList.add('expanded');
+      expandedId = id;
+      accordion.classList.add('has-expanded');
+    }
+
+    function buildDmsGroup(containerId, defaults) {
+      const el = document.getElementById(containerId);
+      const labels = ['°', '′', '″'];
+      const keys = ['d', 'm', 's'];
+      labels.forEach((sym, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'field';
+        wrap.innerHTML = `<span>${sym}</span><input type="number" data-k="${keys[i]}" value="${defaults[i]}"/>`;
+        el.appendChild(wrap);
+      });
+    }
+
+    function readDms(containerId) {
+      const el = document.getElementById(containerId);
+      const out = {};
+      el.querySelectorAll('input').forEach(inp => {
+        out[inp.dataset.k] = inp.value.trim();
+      });
+      return out;
+    }
+
+    function validateDms(obj, name) {
+      for (const k of ['d', 'm', 's']) {
+        if (obj[k] === '' || obj[k] === undefined) {
+          throw new Error(`Заполните координаты ${name}`);
+        }
+        if (isNaN(parseFloat(obj[k]))) {
+          throw new Error(`Некорректное значение ${name}`);
+        }
+      }
+      return {
+        d: parseFloat(obj.d),
+        m: parseFloat(obj.m),
+        s: parseFloat(obj.s)
+      };
+    }
+
+    function calcOgz() {
+      let payload;
+      try {
+        payload = {
+          B1: validateDms(readDms('B1'), 'точки 1 (B)'),
+          L1: validateDms(readDms('L1'), 'точки 1 (L)'),
+          B2: validateDms(readDms('B2'), 'точки 2 (B)'),
+          L2: validateDms(readDms('L2'), 'точки 2 (L)'),
+          a: document.getElementById('a').value,
+          e2: document.getElementById('e2').value,
+          iterations: document.getElementById('iter').value
+        };
+      } catch (err) {
+        showModal(err.message);
+        return;
+      }
+      let raw;
+      try {
+        raw = native.ogz(JSON.stringify(payload));
+      } catch (err) {
+        showModal(String(err));
+        return;
+      }
+      const data = JSON.parse(raw);
+      if (data.error) {
+        ogz = null;
+        showModal(data.error);
+        return;
+      }
+      ogz = {
+        B1_deg: data.B1_deg,
+        L1_deg: data.L1_deg,
+        B2_deg: data.B2_deg,
+        L2_deg: data.L2_deg,
+        a: parseFloat(payload.a),
+        e2: parseFloat(payload.e2),
+        A1: data.A1_deg,
+        A2: data.A2_deg,
+        s: data.s_m
+      };
+      polarPoints = [];
+      document.getElementById('polarResult').textContent = '';
+      document.getElementById('ogzResult').textContent =
+        `A1: ${data.A1_dms}\nA2: ${data.A2_dms}\ns: ${data.s_m.toFixed(3)} м`;
+    }
+
+    function addRow() {
+      const wrap = document.getElementById('rows');
+      const row = document.createElement('div');
+      row.className = 'pgz-row row';
+      row.innerHTML = `
+        <div class="dms-group">
+          <div class="field"><span>°</span><input class="deg" type="number" value="0"/></div>
+          <div class="field"><span>′</span><input class="min" type="number" value="0"/></div>
+          <div class="field"><span>″</span><input class="sec" type="number" value="0"/></div>
+        </div>
+        <div class="dist-wrap"><input class="dist plain-input" type="number" placeholder=""/></div>
+        <button type="button" class="btn btn-icon">−</button>`;
+      row.querySelector('.btn-icon').onclick = () => {
+        if (wrap.children.length <= 1) {
+          showModal('Оставьте хотя бы одну строку');
+          return;
+        }
+        row.remove();
+      };
+      wrap.appendChild(row);
+    }
+
+    function calcPolar() {
+      if (!ogz) {
+        showModal('Сначала выполните расчёт ОГЗ');
+        return;
+      }
+      const legs = [];
+      try {
+        [...document.querySelectorAll('.row')].forEach((row, idx) => {
+          const distRaw = row.querySelector('.dist').value.trim();
+          if (distRaw === '') {
+            throw new Error('Не указано расстояние');
+          }
+          const s = parseFloat(distRaw);
+          if (isNaN(s) || s <= 0) {
+            throw new Error('Расстояние должно быть больше нуля');
+          }
+          legs.push({
+            deg: row.querySelector('.deg').value || '0',
+            min: row.querySelector('.min').value || '0',
+            sec: row.querySelector('.sec').value || '0',
+            s: distRaw
+          });
+        });
+      } catch (err) {
+        showModal(err.message);
+        return;
+      }
+      const payload = {
+        B1: ogz.B1_deg,
+        L1: ogz.L1_deg,
+        A1: ogz.A1,
+        a: ogz.a,
+        e2: ogz.e2,
+        legs
+      };
+      let raw;
+      try {
+        raw = native.polar(JSON.stringify(payload));
+      } catch (err) {
+        showModal(String(err));
+        return;
+      }
+      const data = JSON.parse(raw);
+      if (data.error) {
+        showModal(data.error);
+        return;
+      }
+      polarPoints = data;
+      document.getElementById('polarResult').textContent = data.map(p =>
+        `Точка ${p.number}:\n  B ${p.B_dms}\n  L ${p.L_dms}\n  A ${p.A_dms}\n  Aобр ${p.A_rev_dms}`
+      ).join('\n\n');
+    }
+
+    function exportKind(kind) {
+      if (!ogz || !polarPoints.length) {
+        showModal('Нет результатов ПГЗ для экспорта');
+        return;
+      }
+      const points = [
+        {number: 1, B_deg: ogz.B1_deg, L_deg: ogz.L1_deg, note: '1'},
+        {number: 2, B_deg: ogz.B2_deg, L_deg: ogz.L2_deg, note: '2'}
+      ];
+      polarPoints.forEach(p => points.push({
+        number: p.number, B_deg: p.B_deg, L_deg: p.L_deg,
+        note: String(p.number)
+      }));
+      const payload = {
+        points,
+        meta: {
+          a: ogz.a, e2: ogz.e2,
+          B1: ogz.B1_deg, L1: ogz.L1_deg,
+          B2: ogz.B2_deg, L2: ogz.L2_deg,
+          A1: ogz.A1
+        }
+      };
+      let raw;
+      try {
+        raw = native.exportFile(JSON.stringify(payload), kind);
+      } catch (err) {
+        showModal(String(err));
+        return;
+      }
+      const data = JSON.parse(raw);
+      if (data.error) {
+        showModal(data.error);
+        return;
+      }
+      const labels = {pdf: 'PDF сохранён', kml: 'KML сохранён', map: 'Карта открыта'};
+      showModal(labels[kind] || 'Готово');
+    }
+
+    buildDmsGroup('B1', [55, 45, 21]);
+    buildDmsGroup('L1', [37, 37, 2]);
+    buildDmsGroup('B2', [55, 45, 36]);
+    buildDmsGroup('L2', [37, 37, 48]);
+    addRow();
+  </script>
+</body>
+</html>
